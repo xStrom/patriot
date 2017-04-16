@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/xStrom/patriot/art/estflag"
+	"github.com/xStrom/patriot/log"
 )
 
 var c *websocket.Conn
@@ -35,26 +36,26 @@ func Realtime(wg *sync.WaitGroup, startVersion int) {
 	u := url.URL{Scheme: "wss", Host: "josephg.com", Path: "/sp/ws", RawQuery: fmt.Sprintf("from=%v", startVersion)}
 
 connect:
-	fmt.Printf("connecting to %s\n", u.String())
+	log.Infof("connecting to %s", u.String())
 	var err error
 	c, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		fmt.Printf("dial err: %v\n", err)
+		log.Infof("dial err: %v", err)
 		goto connect
 	}
 
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			fmt.Printf("read error: %v\n", err)
+			log.Infof("read error: %v", err)
 			break
 		}
 		if bytes.Compare(message, []byte("reload")) == 0 {
-			fmt.Printf("Got reload command\n")
+			log.Infof("Got reload command")
 			break
 		}
 		if bytes.Compare(message, []byte("refresh")) == 0 {
-			fmt.Printf("Got refresh command\n")
+			log.Infof("Got refresh command")
 			break
 		}
 		if len(message) >= 7 {
@@ -67,11 +68,11 @@ connect:
 			}
 			//fmt.Printf("\n")
 		} else {
-			fmt.Printf("recv unknown: %v\n", message)
+			log.Infof("recv unknown: %v", message)
 		}
 	}
 
-	fmt.Printf("Close in Realtime\n")
+	log.Infof("Close in Realtime")
 	c.Close()
 	close(done)
 	wg.Done()
@@ -99,16 +100,16 @@ func Shutdown() {
 	// frame and wait for the server to close the connection.
 	err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
-		fmt.Printf("write close error: %v\n", err)
+		log.Infof("write close error: %v", err)
 		return
 	}
 	select {
 	case <-done:
 	case <-time.After(time.Second):
 	}
-	fmt.Printf("Close in Shutdown\n")
+	log.Infof("Close in Shutdown")
 	err = c.Close()
 	if err != nil {
-		fmt.Printf("close error: %v\n", err)
+		log.Infof("close error: %v", err)
 	}
 }

@@ -15,11 +15,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/realtime"
 	"github.com/xStrom/patriot/work"
 	"github.com/xStrom/patriot/work/shutdown"
@@ -31,7 +31,7 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
-	fmt.Println("Launching work engine ...")
+	log.Infof("Launching work engine ...")
 	wg.Add(1)
 	go work.Work(wg)
 
@@ -55,7 +55,7 @@ mainLoop:
 	for {
 		select {
 		case <-interrupt:
-			fmt.Printf("interrupt -- starting shutdown sequence ..\n")
+			log.Infof("interrupt -- starting shutdown sequence ..")
 			shutdown.ShutdownLock.Lock()
 			shutdown.Shutdown = true
 			shutdown.ShutdownLock.Unlock()
@@ -64,7 +64,7 @@ mainLoop:
 		}
 	}
 
-	fmt.Printf("Waiting for clean shutdown ..\n")
+	log.Infof("Waiting for clean shutdown ..")
 	wg.Wait()
-	fmt.Printf("Clean shutdown done :>\n")
+	log.Infof("Clean shutdown done :>")
 }

@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/xStrom/patriot/log"
 )
 
 const UserAgent = "Patriot/1.0 (https://github.com/xStrom/patriot)"
@@ -66,7 +68,7 @@ func FetchImage() ([]byte, int, error) {
 			version = int(ver)
 		}
 	}
-	fmt.Printf("Image version: %v\n", version)
+	log.Infof("Image version: %v", version)
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return nil, -1, errors.Wrap(err, "Failed reading response")
 	} else {
@@ -90,8 +92,8 @@ func DrawPixel(x, y, c int) error {
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return errors.Wrap(err, "Failed reading response")
 	} else if len(b) > 0 {
-		fmt.Printf("Got response:\n%v\n", string(b))
+		log.Infof("Got response:\n%v", string(b))
 	}
-	fmt.Printf("Drew: %v - %v - %v\n", x, y, c)
+	log.Infof("Drew: %v - %v - %v", x, y, c)
 	return nil
 }

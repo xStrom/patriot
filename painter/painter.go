@@ -15,11 +15,11 @@
 package painter
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/xStrom/patriot/art"
+	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/sp"
 	"github.com/xStrom/patriot/work/shutdown"
 )
@@ -35,7 +35,7 @@ func Work(wg *sync.WaitGroup) {
 		shutdown.ShutdownLock.RLock()
 		if shutdown.Shutdown {
 			shutdown.ShutdownLock.RUnlock()
-			fmt.Printf("Shutting down painter\n")
+			log.Infof("Shutting down painter")
 			wg.Done()
 			break
 		}
@@ -48,7 +48,7 @@ func Work(wg *sync.WaitGroup) {
 		queueLock.Unlock()
 		if p != nil {
 			if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
-				fmt.Printf("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
+				log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
 				queueLock.Lock()
 				queue = append(queue, p)
 				queueLock.Unlock()

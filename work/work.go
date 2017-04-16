@@ -15,11 +15,11 @@
 package work
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/xStrom/patriot/art"
 	"github.com/xStrom/patriot/art/estflag"
+	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/painter"
 	"github.com/xStrom/patriot/realtime"
 	"github.com/xStrom/patriot/sp"
@@ -27,7 +27,7 @@ import (
 )
 
 func Work(wg *sync.WaitGroup) {
-	fmt.Println("Launching painter ...")
+	log.Infof("Launching painter ...")
 	wg.Add(1)
 	go painter.Work(wg)
 
@@ -35,7 +35,7 @@ func Work(wg *sync.WaitGroup) {
 		shutdown.ShutdownLock.RLock()
 		if shutdown.Shutdown {
 			shutdown.ShutdownLock.RUnlock()
-			fmt.Printf("Shutting down work engine\n")
+			log.Infof("Shutting down work engine")
 			wg.Done()
 			break
 		}
@@ -49,10 +49,10 @@ func Work(wg *sync.WaitGroup) {
 
 func FetchImageAndCheck() int {
 start:
-	fmt.Printf("Fetching image ..\n")
+	log.Infof("Fetching image ..")
 	data, version, err := sp.FetchImage()
 	if err != nil {
-		fmt.Printf("Failed to fetch image: %v\n", err)
+		log.Infof("Failed to fetch image: %v", err)
 		goto start
 	}
 	img, err := art.ParseImage(data)
