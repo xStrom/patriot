@@ -61,8 +61,12 @@ connect:
 		if len(message) >= 7 {
 			version := int(binary.LittleEndian.Uint32(message[0:4]))
 			for i := 4; i < len(message); i += 3 {
-				x, y, color := decodeEdit(message[i : i+3]) // TODO: Out of bounds check
-				image.UpdatePixel(x, y, color, version)
+				if len(message) >= i+3 {
+					x, y, color := decodeEdit(message[i : i+3])
+					image.UpdatePixel(x, y, color, version)
+				} else {
+					log.Infof("recv unknown suffix on edits: %v", message[i:])
+				}
 			}
 		} else {
 			log.Infof("recv unknown: %v", message)

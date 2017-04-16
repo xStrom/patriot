@@ -55,8 +55,6 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 			go func(p *art.Pixel) {
 				if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
 					log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
-				} else {
-					// TODO: Find out if we need to update the image ourselves in case of a successful situation
 				}
 				time.Sleep(5 * time.Second) // Allow another additional 5 seconds for realtime to update after the request is done
 				inFlightLock.Lock()
