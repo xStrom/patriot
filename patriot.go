@@ -53,21 +53,7 @@ func main() {
 	fmt.Println("Launching queue handler ...")
 	go executeQueue()
 
-	/*
-		data, err := getTestImage()
-		if err != nil {
-			panic("Failed to read test image")
-		}
-	*/
-	data, err := fetchImage()
-	if err != nil {
-		panic("Failed to fetch image")
-	}
-	img, err := parseImage(data)
-	if err != nil {
-		panic("Failed to parse image")
-	}
-	checkFlag(img)
+	fetchAndCheck()
 
 	fmt.Println("Waiting for queue to be empty ...")
 	for {
@@ -94,8 +80,13 @@ func drawPixel(x, y, c int) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed performing request")
 	}
-	if _, err := ioutil.ReadAll(resp.Body); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("Got non-OK status: %v\n", resp.StatusCode)
+	}
+	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return errors.Wrap(err, "Failed reading response")
+	} else if len(b) > 0 {
+		fmt.Printf("Got response:\n%v\n", string(b))
 	}
 	fmt.Printf("Drew: %v - %v - %v\n", x, y, c)
 	return nil
@@ -135,6 +126,21 @@ func addToQueue(w *Work) {
 	queueLock.Lock()
 	queue = append(queue, w)
 	queueLock.Unlock()
+}
+
+func fetchAndCheck() {
+start:
+	fmt.Printf("Fetching image ..\n")
+	data, err := fetchImage()
+	if err != nil {
+		fmt.Printf("Failed to fetch image: %v\n", err)
+		goto start
+	}
+	img, err := parseImage(data)
+	if err != nil {
+		panic("Failed to parse image")
+	}
+	checkFlag(img)
 }
 
 func getTestImage() ([]byte, error) {
