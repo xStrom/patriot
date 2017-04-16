@@ -18,9 +18,9 @@ import (
 	"github.com/xStrom/patriot/art"
 )
 
-//const x0, y0 = 75, 36
-const x0, y0 = 740, 900
-const x1, y1 = x0 + 33 - 1, y0 + 21 - 1
+//const x0, y0 = 74, 35
+const x0, y0 = 739, 899
+const x1, y1 = x0 + 35 - 1, y0 + 23 - 1
 
 // Fixes any broken pixels in the provided image
 func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
@@ -32,22 +32,30 @@ func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
 
 			c := image.At(x, y)
 
-			switch (y - y0) / 7 {
-			case 0:
-				if c != art.DarkBlue {
-					return &art.Pixel{x, y, art.DarkBlue}
+			// Border
+			if x == x0 || x == x1 || y == y0 || y == y1 {
+				if c != art.LightGray {
+					return &art.Pixel{x, y, art.LightGray}
 				}
-				break
-			case 1:
-				if c != art.Black {
-					return &art.Pixel{x, y, art.Black}
+			} else {
+				// Flag itself
+				switch (y - y0 - 1) / 7 {
+				case 0:
+					if c != art.DarkBlue {
+						return &art.Pixel{x, y, art.DarkBlue}
+					}
+					break
+				case 1:
+					if c != art.Black {
+						return &art.Pixel{x, y, art.Black}
+					}
+					break
+				case 2:
+					if c != art.White {
+						return &art.Pixel{x, y, art.White}
+					}
+					break
 				}
-				break
-			case 2:
-				if c != art.White {
-					return &art.Pixel{x, y, art.White}
-				}
-				break
 			}
 		}
 	}
