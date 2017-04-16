@@ -30,7 +30,6 @@ var queue []*art.Pixel
 var queueLock sync.Mutex
 
 func Work(wg *sync.WaitGroup) {
-	var p *art.Pixel
 	for {
 		shutdown.ShutdownLock.RLock()
 		if shutdown.Shutdown {
@@ -41,19 +40,21 @@ func Work(wg *sync.WaitGroup) {
 		}
 		shutdown.ShutdownLock.RUnlock()
 
+		var p *art.Pixel
 		queueLock.Lock()
 		if len(queue) > 0 {
 			p, queue = queue[0], queue[1:]
 		}
 		queueLock.Unlock()
 		if p != nil {
-			if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
-				log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
-				queueLock.Lock()
-				queue = append(queue, p)
-				queueLock.Unlock()
-			}
-			p = nil
+			go func(p *art.Pixel) {
+				if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
+					log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
+					queueLock.Lock()
+					queue = append(queue, p)
+					queueLock.Unlock()
+				}
+			}(p)
 		}
 		time.Sleep(1 * time.Second) // Non-white pixels limited to 1/sec by server (white to 2.5/sec)
 	}

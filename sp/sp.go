@@ -46,6 +46,7 @@ func FetchImageFromFile() ([]byte, error) {
 }
 
 func FetchImage() ([]byte, int, error) {
+	t := time.Now()
 	req, err := http.NewRequest("GET", "https://josephg.com/sp/current", nil)
 	if err != nil {
 		return nil, -1, errors.Wrap(err, "Failed creating request")
@@ -68,15 +69,16 @@ func FetchImage() ([]byte, int, error) {
 			version = int(ver)
 		}
 	}
-	log.Infof("Image version: %v", version)
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return nil, -1, errors.Wrap(err, "Failed reading response")
 	} else {
+		log.Infof("Got image v%v @ %vKB [%v]", version, len(b)/1000, time.Since(t))
 		return b, version, nil
 	}
 }
 
 func DrawPixel(x, y, c int) error {
+	t := time.Now()
 	req, err := http.NewRequest("POST", fmt.Sprintf("https://josephg.com/sp/edit?x=%v&y=%v&c=%v", x, y, c), nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed creating request")
@@ -94,6 +96,6 @@ func DrawPixel(x, y, c int) error {
 	} else if len(b) > 0 {
 		log.Infof("Got response:\n%v", string(b))
 	}
-	log.Infof("Drew: %v - %v - %v", x, y, c)
+	log.Infof("Drew: %v - %v - %v [%dms]", x, y, c, time.Since(t)/time.Millisecond)
 	return nil
 }
