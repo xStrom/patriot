@@ -15,199 +15,56 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
-	"io/ioutil"
-	"net/http"
+	"os"
+	"os/signal"
 	"sync"
-	"time"
 
-	"github.com/pkg/errors"
-)
-
-const UserAgent = "Patriot/1.0 (https://github.com/xStrom/patriot)"
-
-const (
-	White = iota
-	LightGray
-	Gray
-	Black
-	Pink
-	Red
-	Orange
-	Brown
-	Yellow
-	Lime
-	Green
-	Aqua
-	LightBlue
-	Blue
-	DarkPink
-	Purple
+	"github.com/xStrom/patriot/realtime"
+	"github.com/xStrom/patriot/work"
+	"github.com/xStrom/patriot/work/shutdown"
 )
 
 func main() {
-	fmt.Println("Launching queue handler ...")
-	go executeQueue()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
 
-	fetchAndCheck()
+	wg := &sync.WaitGroup{}
 
-	fmt.Println("Waiting for queue to be empty ...")
-	for {
-		queueLock.Lock()
-		if len(queue) > 0 {
-			fmt.Printf("Still have %v items in queue ..\n", len(queue))
-		} else {
-			queueLock.Unlock()
-			break
-		}
-		queueLock.Unlock()
-		time.Sleep(10 * time.Second)
-	}
-	fmt.Println("All done!")
-}
+	fmt.Println("Launching work engine ...")
+	wg.Add(1)
+	go work.Work(wg)
 
-func drawPixel(x, y, c int) error {
-	req, err := http.NewRequest("POST", fmt.Sprintf("https://josephg.com/sp/edit?x=%v&y=%v&c=%v", x, y, c), nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed creating request")
-	}
-	req.Header.Set("User-Agent", UserAgent)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "Failed performing request")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("Got non-OK status: %v\n", resp.StatusCode)
-	}
-	if b, err := ioutil.ReadAll(resp.Body); err != nil {
-		return errors.Wrap(err, "Failed reading response")
-	} else if len(b) > 0 {
-		fmt.Printf("Got response:\n%v\n", string(b))
-	}
-	fmt.Printf("Drew: %v - %v - %v\n", x, y, c)
-	return nil
-}
-
-type Work struct {
-	X int
-	Y int
-	C int
-}
-
-var queue []*Work
-var queueLock sync.Mutex
-
-func executeQueue() {
-	var w *Work
-	for {
-		queueLock.Lock()
-		if len(queue) > 0 {
-			w, queue = queue[0], queue[1:]
-		}
-		queueLock.Unlock()
-		if w != nil {
-			if err := drawPixel(w.X, w.Y, w.C); err != nil {
-				fmt.Printf("Failed drawing %v:%v to %v, because: %v", w.X, w.Y, w.C, err)
-				queueLock.Lock()
-				queue = append(queue, w)
+	/*
+		fmt.Println("Waiting for queue to be empty ...")
+		for {
+			queueLock.Lock()
+			if len(queue) > 0 {
+				fmt.Printf("Still have %v items in queue ..\n", len(queue))
+			} else {
 				queueLock.Unlock()
+				break
 			}
-			w = nil
+			queueLock.Unlock()
+			time.Sleep(10 * time.Second)
 		}
-		time.Sleep(1 * time.Second)
-	}
-}
+		fmt.Println("All done!")
+	*/
 
-func addToQueue(w *Work) {
-	queueLock.Lock()
-	queue = append(queue, w)
-	queueLock.Unlock()
-}
-
-func fetchAndCheck() {
-start:
-	fmt.Printf("Fetching image ..\n")
-	data, err := fetchImage()
-	if err != nil {
-		fmt.Printf("Failed to fetch image: %v\n", err)
-		goto start
-	}
-	img, err := parseImage(data)
-	if err != nil {
-		panic("Failed to parse image")
-	}
-	checkFlag(img)
-}
-
-func getTestImage() ([]byte, error) {
-	return ioutil.ReadFile("current.png")
-}
-
-func fetchImage() ([]byte, error) {
-	req, err := http.NewRequest("GET", "https://josephg.com/sp/current", nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating request")
-	}
-	req.Header.Set("User-Agent", UserAgent)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed performing request")
-	}
-	if b, err := ioutil.ReadAll(resp.Body); err != nil {
-		return nil, errors.Wrap(err, "Failed reading response")
-	} else {
-		return b, nil
-	}
-}
-
-func parseImage(data []byte) (image.Image, error) {
-	buf := bytes.NewBuffer(data)
-	img, err := png.Decode(buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode image")
-	}
-	if img.Bounds().Min.X != 0 || img.Bounds().Min.Y != 0 || img.Bounds().Max.X != 1000 || img.Bounds().Max.Y != 1000 {
-		return nil, errors.New("Unexpected image bounds")
-	}
-	return img, nil
-}
-
-func checkFlag(image image.Image) {
-	x0, y0 := 75, 36
-	x1, y1 := 107, 56
-
-	blue := color.RGBA64{0, 0, 60138, 65535}
-	black := color.RGBA64{8738, 8738, 8738, 65535}
-	white := color.RGBA64{65535, 65535, 65535, 65535}
-
-	for x := x0; x <= x1; x++ {
-		for y := y0; y <= y1; y++ {
-			c := image.At(x, y)
-
-			switch (y - y0) / 7 {
-			case 0:
-				if !sameColor(c, blue) {
-					addToQueue(&Work{x, y, Blue})
-				}
-			case 1:
-				if !sameColor(c, black) {
-					addToQueue(&Work{x, y, Black})
-				}
-			case 2:
-				if !sameColor(c, white) {
-					addToQueue(&Work{x, y, White})
-				}
-			}
+mainLoop:
+	for {
+		select {
+		case <-interrupt:
+			fmt.Printf("interrupt -- starting shutdown sequence ..\n")
+			shutdown.ShutdownLock.Lock()
+			shutdown.Shutdown = true
+			shutdown.ShutdownLock.Unlock()
+			realtime.Shutdown()
+			break mainLoop
 		}
 	}
-}
 
-func sameColor(c1, c2 color.Color) bool {
-	r1, g1, b1, a1 := c1.RGBA()
-	r2, g2, b2, a2 := c2.RGBA()
-	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
+	fmt.Printf("Waiting for clean shutdown ..\n")
+	wg.Wait()
+	fmt.Printf("Clean shutdown done :>\n")
 }
