@@ -19,18 +19,23 @@ import (
 	"time"
 
 	"github.com/xStrom/patriot/art"
+	"github.com/xStrom/patriot/art/estflag"
 	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/sp"
 	"github.com/xStrom/patriot/work/shutdown"
 )
 
-// TODO: Instead of a dumb queue use a coordinate based map so we always only draw the latest requested value
-
-var queue []*art.Pixel
-var queueLock sync.Mutex
-
-func Work(wg *sync.WaitGroup) {
+func Work(wg *sync.WaitGroup, image *art.Image) {
+	inFlight := map[int]bool{}
+	inFlightLock := sync.Mutex{}
 	for {
+		// Make sure we have some image data to work with
+		if image.Version() == 0 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		t := time.Now()
 		shutdown.ShutdownLock.RLock()
 		if shutdown.Shutdown {
 			shutdown.ShutdownLock.RUnlock()
@@ -40,28 +45,31 @@ func Work(wg *sync.WaitGroup) {
 		}
 		shutdown.ShutdownLock.RUnlock()
 
-		var p *art.Pixel
-		queueLock.Lock()
-		if len(queue) > 0 {
-			p, queue = queue[0], queue[1:]
-		}
-		queueLock.Unlock()
+		inFlightLock.Lock()
+
+		// Estonian flag
+		p := estflag.GetWork(image, inFlight)
+
 		if p != nil {
+			inFlight[p.X|(p.Y<<16)] = true
 			go func(p *art.Pixel) {
 				if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
 					log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
-					queueLock.Lock()
-					queue = append(queue, p)
-					queueLock.Unlock()
+				} else {
+					// TODO: Find out if we need to update the image ourselves in case of a successful situation
 				}
+				time.Sleep(5 * time.Second) // Allow another additional 5 seconds for realtime to update after the request is done
+				inFlightLock.Lock()
+				delete(inFlight, p.X|(p.Y<<16))
+				inFlightLock.Unlock()
 			}(p)
 		}
-		time.Sleep(1 * time.Second) // Non-white pixels limited to 1/sec by server (white to 2.5/sec)
-	}
-}
 
-func SetPixel(p *art.Pixel) {
-	queueLock.Lock()
-	queue = append(queue, p)
-	queueLock.Unlock()
+		inFlightLock.Unlock()
+
+		// TODO: Non-white pixels limited to 1/sec by server (white to 2.5/sec)
+		if sleep := 1*time.Second - time.Since(t); sleep > 0 {
+			time.Sleep(sleep)
+		}
+	}
 }

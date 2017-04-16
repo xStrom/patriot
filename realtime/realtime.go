@@ -24,16 +24,16 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/xStrom/patriot/art/estflag"
+	"github.com/xStrom/patriot/art"
 	"github.com/xStrom/patriot/log"
 )
 
 var c *websocket.Conn
 var done chan struct{}
 
-func Realtime(wg *sync.WaitGroup, startVersion int) {
+func Realtime(wg *sync.WaitGroup, image *art.Image) {
 	done = make(chan struct{})
-	u := url.URL{Scheme: "wss", Host: "josephg.com", Path: "/sp/ws", RawQuery: fmt.Sprintf("from=%v", startVersion)}
+	u := url.URL{Scheme: "wss", Host: "josephg.com", Path: "/sp/ws", RawQuery: fmt.Sprintf("from=%v", image.Version())}
 
 connect:
 	log.Infof("connecting to %s", u.String())
@@ -59,14 +59,11 @@ connect:
 			break
 		}
 		if len(message) >= 7 {
-			binary.LittleEndian.Uint32(message[0:4]) // version
-			//fmt.Printf("Version: %v => ", version)
+			version := int(binary.LittleEndian.Uint32(message[0:4]))
 			for i := 4; i < len(message); i += 3 {
 				x, y, color := decodeEdit(message[i : i+3]) // TODO: Out of bounds check
-				//fmt.Printf("%v:%v = %v |", x, y, color)
-				estflag.CheckPixel(x, y, color)
+				image.UpdatePixel(x, y, color, version)
 			}
-			//fmt.Printf("\n")
 		} else {
 			log.Infof("recv unknown: %v", message)
 		}

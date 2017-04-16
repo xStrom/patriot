@@ -16,11 +16,13 @@ package art
 
 import (
 	"bytes"
-	"image"
 	"image/color"
 	"image/png"
+	"sync"
 
 	"github.com/pkg/errors"
+
+	"github.com/xStrom/patriot/log"
 )
 
 const (
@@ -48,19 +50,83 @@ type Pixel struct {
 	C int
 }
 
-func ParseImage(data []byte) (image.Image, error) {
+var blue = color.RGBA64{0, 0, 60138, 65535}
+var black = color.RGBA64{8738, 8738, 8738, 65535}
+var white = color.RGBA64{65535, 65535, 65535, 65535}
+
+type Image struct {
+	lock    sync.RWMutex
+	version int
+	colors  map[int]int
+}
+
+func (i *Image) Version() int {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.version
+}
+
+func (i *Image) At(x, y int) int {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	if c, ok := i.colors[x|(y<<16)]; ok {
+		return c
+	}
+	return -1
+}
+
+func (i *Image) ParseKeyframe(version int, data []byte) error {
 	buf := bytes.NewBuffer(data)
 	img, err := png.Decode(buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode image")
+		return errors.Wrap(err, "Failed to decode image")
 	}
-	if img.Bounds().Min.X != 0 || img.Bounds().Min.Y != 0 || img.Bounds().Max.X != 1000 || img.Bounds().Max.Y != 1000 {
-		return nil, errors.New("Unexpected image bounds")
+	minX := img.Bounds().Min.X
+	maxX := img.Bounds().Max.X
+	minY := img.Bounds().Min.Y
+	maxY := img.Bounds().Max.Y
+	if minX != 0 || minY != 0 || maxX != 1000 || maxY != 1000 {
+		return errors.New("Unexpected image bounds")
 	}
-	return img, nil
+	// Convert colors
+	colors := make(map[int]int, (maxX-minX)*(maxY-minY))
+	for x := minX; x < maxX; x++ {
+		for y := minY; y < maxY; y++ {
+			coords := x | (y << 16)
+			c := img.At(x, y)
+
+			if sameColor(c, blue) {
+				colors[coords] = DarkBlue
+			} else if sameColor(c, black) {
+				colors[coords] = Black
+			} else if sameColor(c, white) {
+				colors[coords] = White
+			} else {
+				colors[coords] = -1 // TODO: Implement all colors
+			}
+		}
+	}
+	i.lock.Lock()
+	if i.version > version {
+		log.Infof("New image version is old! %v >= %v", i.version, version)
+	}
+	i.version = version
+	i.colors = colors
+	i.lock.Unlock()
+	return nil
 }
 
-func SameColor(c1, c2 color.Color) bool {
+func (i *Image) UpdatePixel(x, y, color, version int) {
+	i.lock.Lock()
+	if i.version > version {
+		log.Infof("New pixel version is old! %v >= %v", i.version, version)
+	}
+	i.version = version
+	i.colors[x|(y<<16)] = color
+	i.lock.Unlock()
+}
+
+func sameColor(c1, c2 color.Color) bool {
 	r1, g1, b1, a1 := c1.RGBA()
 	r2, g2, b2, a2 := c2.RGBA()
 	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2

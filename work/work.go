@@ -18,7 +18,6 @@ import (
 	"sync"
 
 	"github.com/xStrom/patriot/art"
-	"github.com/xStrom/patriot/art/estflag"
 	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/painter"
 	"github.com/xStrom/patriot/realtime"
@@ -27,9 +26,11 @@ import (
 )
 
 func Work(wg *sync.WaitGroup) {
+	img := &art.Image{}
+
 	log.Infof("Launching painter ...")
 	wg.Add(1)
-	go painter.Work(wg)
+	go painter.Work(wg, img)
 
 	for {
 		shutdown.ShutdownLock.RLock()
@@ -41,13 +42,13 @@ func Work(wg *sync.WaitGroup) {
 		}
 		shutdown.ShutdownLock.RUnlock()
 
-		version := FetchImageAndCheck()
+		UpdateImage(img)
 		wg.Add(1)
-		realtime.Realtime(wg, version)
+		realtime.Realtime(wg, img)
 	}
 }
 
-func FetchImageAndCheck() int {
+func UpdateImage(img *art.Image) {
 start:
 	log.Infof("Fetching image ..")
 	data, version, err := sp.FetchImage()
@@ -55,10 +56,7 @@ start:
 		log.Infof("Failed to fetch image: %v", err)
 		goto start
 	}
-	img, err := art.ParseImage(data)
-	if err != nil {
+	if err := img.ParseKeyframe(version, data); err != nil {
 		panic("Failed to parse image")
 	}
-	estflag.CheckImage(img)
-	return version
 }

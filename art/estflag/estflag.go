@@ -15,61 +15,49 @@
 package estflag
 
 import (
-	"image"
-	"image/color"
-
 	"github.com/xStrom/patriot/art"
-	"github.com/xStrom/patriot/painter"
 )
 
-var x0, y0 = 75, 36
-var x1, y1 = 107, 56
-
-var blue = color.RGBA64{0, 0, 60138, 65535}
-var black = color.RGBA64{8738, 8738, 8738, 65535}
-var white = color.RGBA64{65535, 65535, 65535, 65535}
+//const x0, y0 = 75, 36
+const x0, y0 = 740, 900
+const x1, y1 = x0 + 33 - 1, y0 + 21 - 1
 
 // Fixes any broken pixels in the provided image
-func CheckImage(image image.Image) {
+func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
 	for x := x0; x <= x1; x++ {
 		for y := y0; y <= y1; y++ {
+			if ignorePixels[x|(y<<16)] {
+				continue
+			}
+
 			c := image.At(x, y)
 
 			switch (y - y0) / 7 {
 			case 0:
-				if !art.SameColor(c, blue) {
-					painter.SetPixel(&art.Pixel{x, y, art.DarkBlue})
+				if c != art.DarkBlue {
+					return &art.Pixel{x, y, art.DarkBlue}
 				}
+				break
 			case 1:
-				if !art.SameColor(c, black) {
-					painter.SetPixel(&art.Pixel{x, y, art.Black})
+				if c != art.Black {
+					return &art.Pixel{x, y, art.Black}
 				}
+				break
 			case 2:
-				if !art.SameColor(c, white) {
-					painter.SetPixel(&art.Pixel{x, y, art.White})
+				if c != art.White {
+					return &art.Pixel{x, y, art.White}
 				}
+				break
 			}
 		}
 	}
+	return nil
 }
 
-// Fixes the provided pixel if needed
+// TODO: Bounds check function, so that not every art needs to be looped through after every pixel update --- make a dirty region system
 func CheckPixel(x, y, c int) {
 	// Make sure the pixel is even in bounds
 	if x >= x0 && x <= x1 && y >= y0 && y <= y1 {
-		switch (y - y0) / 7 {
-		case 0:
-			if c != art.DarkBlue {
-				painter.SetPixel(&art.Pixel{x, y, art.DarkBlue})
-			}
-		case 1:
-			if c != art.Black {
-				painter.SetPixel(&art.Pixel{x, y, art.Black})
-			}
-		case 2:
-			if c != art.White {
-				painter.SetPixel(&art.Pixel{x, y, art.White})
-			}
-		}
+
 	}
 }

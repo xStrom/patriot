@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -27,7 +28,9 @@ import (
 	"github.com/xStrom/patriot/log"
 )
 
-const UserAgent = "Patriot/1.0 (https://github.com/xStrom/patriot)"
+const saveImageAsFile = false
+
+const UserAgent = "Patriot/1.1 (https://github.com/xStrom/patriot)"
 
 var client = &http.Client{
 	Transport: &http.Transport{
@@ -72,6 +75,11 @@ func FetchImage() ([]byte, int, error) {
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return nil, -1, errors.Wrap(err, "Failed reading response")
 	} else {
+		if saveImageAsFile {
+			if err := ioutil.WriteFile("out.png", b, os.ModeAppend); err != nil {
+				return nil, -1, errors.Wrap(err, "Failed to save fetched image")
+			}
+		}
 		log.Infof("Got image v%v @ %vKB [%v]", version, len(b)/1000, time.Since(t))
 		return b, version, nil
 	}
