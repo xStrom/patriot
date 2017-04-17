@@ -85,25 +85,25 @@ func FetchImage() ([]byte, int, error) {
 	}
 }
 
-func DrawPixel(x, y, c int) error {
+func DrawPixel(x, y, c int) (error, int) {
 	t := time.Now()
 	req, err := http.NewRequest("POST", fmt.Sprintf("https://josephg.com/sp/edit?x=%v&y=%v&c=%v", x, y, c), nil)
 	if err != nil {
-		return errors.Wrap(err, "Failed creating request")
+		return errors.Wrap(err, "Failed creating request"), -1
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	resp, err := client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "Failed performing request")
+		return errors.Wrap(err, "Failed performing request"), -1
 	}
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("Got non-OK status: %v", resp.StatusCode)
+		return errors.Errorf("Got non-OK status: %v", resp.StatusCode), resp.StatusCode
 	}
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
-		return errors.Wrap(err, "Failed reading response")
+		return errors.Wrap(err, "Failed reading response"), resp.StatusCode
 	} else if len(b) > 0 {
 		log.Infof("Got response:\n%v", string(b))
 	}
 	log.Infof("Drew: %v - %v - %v [%dms]", x, y, c, time.Since(t)/time.Millisecond)
-	return nil
+	return nil, resp.StatusCode
 }

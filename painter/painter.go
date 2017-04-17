@@ -15,10 +15,12 @@
 package painter
 
 import (
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/xStrom/patriot/art"
+	"github.com/xStrom/patriot/art/dota"
 	"github.com/xStrom/patriot/art/estcows"
 	"github.com/xStrom/patriot/art/estville"
 	"github.com/xStrom/patriot/log"
@@ -45,10 +47,22 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 		}
 		shutdown.ShutdownLock.RUnlock()
 
+		// Sleep until we can perform the next move
+		sleepUntilNextMove()
+
 		inFlightLock.Lock()
 
+		var p *art.Pixel
+
+		// #0 priority Dota 2 logo [Near mario]
+		if p == nil {
+			p = dota.GetWork(image, inFlight)
+		}
+
 		// #1 priority Estville [Bottom right project]
-		p := estville.GetWork(image, inFlight)
+		if p == nil {
+			p = estville.GetWork(image, inFlight)
+		}
 
 		// #2 priority Estonian flag [Classic above the fold flag]
 		/*
@@ -64,125 +78,91 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 
 		if p != nil {
 			inFlight[p.X|(p.Y<<16)] = true
-			dc := allocateDrawCall(image.At(p.X, p.Y))
-			go func(p *art.Pixel, dc *drawCall) {
-				if err := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
-					dc.Cancel()
+			cost := drawCallCost(image.At(p.X, p.Y))
+			cs := addCycleCost(cost)
+			go func(p *art.Pixel, cs int64, cost int) {
+				//log.Infof("Requesting draw of %v:%v - %v", p.X, p.Y, p.C)
+				if err, statusCode := sp.DrawPixel(p.X, p.Y, p.C); err != nil {
+					// Don't remove the cycle cost in case of 403, because that means we hit the server rate limiting
+					if statusCode != http.StatusForbidden {
+						removeCycleCost(cs, cost)
+					}
 					log.Infof("Failed drawing %v:%v to %v, because: %v", p.X, p.Y, p.C, err)
-				} else {
-					dc.Finalize()
 				}
 				time.Sleep(5 * time.Second) // Allow another additional 5 seconds for realtime to update after the request is done
 				inFlightLock.Lock()
 				delete(inFlight, p.X|(p.Y<<16))
 				inFlightLock.Unlock()
-			}(p, dc)
+			}(p, cs, cost)
 		}
 
 		inFlightLock.Unlock()
 
-		// Sleep until we can perform the next move
-		if sleep := getTimeUntilNextMove(); sleep > 0 {
-			log.Infof("Sleeping %v", sleep)
-			time.Sleep(sleep)
+		// Prevent hot spin if there's nothing to do
+		if p == nil {
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
-
-type drawCall struct {
-	time time.Time
-	cost int
-}
-
-func (dc *drawCall) Cancel() {
-	drawcallsLock.Lock()
-	defer drawcallsLock.Unlock()
-	for i := range drawcalls {
-		if drawcalls[i] == dc {
-			drawcalls[i], drawcalls = drawcalls[len(drawcalls)-1], drawcalls[:len(drawcalls)-1]
-			return
-		}
-	}
-}
-
-func (dc *drawCall) Finalize() {
-	drawcallsLock.Lock()
-	dc.time = time.Now()
-	drawcallsLock.Unlock()
-}
-
-var drawcalls []*drawCall
-var drawcallsLock sync.Mutex
 
 const (
 	scorePerWindow     = 50
-	scoreWindow        = 10 * time.Second
+	scoreWindowSecs    = 10
 	paintOverWhiteCost = 2
 	paintOverOtherCost = 5
 )
 
 func drawCallCost(oldColor int) int {
-	if oldColor == art.White {
-		return paintOverWhiteCost
-	}
+	/*
+		// DISABLED: White surface reduced cost seems broken on the server side
+		if oldColor == art.White {
+			return paintOverWhiteCost
+		}
+	*/
 	return paintOverOtherCost
 }
 
-func allocateDrawCall(oldColor int) *drawCall {
-	dc := &drawCall{cost: drawCallCost(oldColor)}
-	drawcallsLock.Lock()
-	drawcalls = append(drawcalls, dc)
-	drawcallsLock.Unlock()
-	return dc
+var cycleCost int
+var cycleStart int64
+var cycleLock sync.Mutex
+
+func addCycleCost(cost int) int64 {
+	cycleLock.Lock()
+	defer cycleLock.Unlock()
+	cycleCost += cost
+	return cycleStart
 }
 
-func getTimeUntilNextMove() time.Duration {
-	drawcallsLock.Lock()
-
-	// Clean up entries older than the configured time window
-	now := time.Now()
-	for i := 0; i < len(drawcalls); i++ {
-		if !drawcalls[i].time.IsZero() && now.Sub(drawcalls[i].time) >= scoreWindow {
-			drawcalls[i], drawcalls = drawcalls[len(drawcalls)-1], drawcalls[:len(drawcalls)-1]
-			i--
-		}
+func removeCycleCost(start int64, cost int) {
+	cycleLock.Lock()
+	defer cycleLock.Unlock()
+	if cycleStart == start {
+		cycleCost -= cost
 	}
+}
 
-	// Add up the score
-	score := 0
-	for i := range drawcalls {
-		score += drawcalls[i].cost
-	}
-
-	drawcallsLock.Unlock()
-
-	// Can we do the next move immediately?
-	if scorePerWindow-score >= paintOverOtherCost {
-		return 0
-	}
-
-	// Determine time until enough free moves for any color surface
+func sleepUntilNextMove() {
 	for {
-		var until time.Duration
-		freeMoves := scorePerWindow - score
-		drawcallsLock.Lock()
-		now := time.Now()
-		for i := range drawcalls {
-			if !drawcalls[i].time.IsZero() {
-				freeMoves += drawcalls[i].cost
-				remaining := drawcalls[i].time.Sub(now)
-				if remaining > until {
-					until = remaining
-				}
-				if freeMoves >= paintOverOtherCost {
-					drawcallsLock.Unlock()
-					return until
-				} else {
-					log.Infof("Not enough free moves: %v", freeMoves)
-				}
-			}
+		cycleLock.Lock()
+
+		now := time.Now().Unix()
+		if cycleStart+scoreWindowSecs <= now {
+			cycleStart = now
+			cycleCost = 0
+			//log.Infof("New cycle started at %v", cycleStart)
+			cycleLock.Unlock()
+			return
 		}
-		drawcallsLock.Unlock()
-		time.Sleep(100 * time.Millisecond)
+
+		// Can we do the next move?
+		if scorePerWindow-cycleCost >= paintOverOtherCost {
+			//log.Infof("Can still do another move (%v/%v)", cycleCost, scorePerWindow)
+			cycleLock.Unlock()
+			return
+		}
+
+		cycleLock.Unlock()
+
+		time.Sleep(1 * time.Second)
 	}
 }
