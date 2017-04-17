@@ -100,7 +100,7 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 
 		// Prevent hot spin if there's nothing to do
 		if p == nil {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
