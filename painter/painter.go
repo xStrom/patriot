@@ -106,19 +106,16 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 }
 
 const (
-	scorePerWindow     = 50
+	scorePerWindow     = 30
 	scoreWindowSecs    = 10
 	paintOverWhiteCost = 2
 	paintOverOtherCost = 5
 )
 
 func drawCallCost(oldColor int) int {
-	/*
-		// DISABLED: White surface reduced cost seems broken on the server side
-		if oldColor == art.White {
-			return paintOverWhiteCost
-		}
-	*/
+	if oldColor == art.White {
+		return paintOverWhiteCost
+	}
 	return paintOverOtherCost
 }
 

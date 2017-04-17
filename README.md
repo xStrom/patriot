@@ -1,6 +1,6 @@
 # Patriot
 
-This is a simple pixel art bot I wrote to keep up with increasing vandalism at [https://josephg.com/sp/](https://josephg.com/sp/).
+Patriot is a pixel art bot I initially wrote to keep up with increasing vandalism at [https://josephg.com/sp/](https://josephg.com/sp/). Later on I added support for drawing based on input png files, and greatly improved rate limiting to match the maximum the server would allow for.
 
 # Project status
 
