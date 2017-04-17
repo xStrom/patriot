@@ -45,24 +45,24 @@ const (
 	Transparent
 )
 
-var colorToRGBA = map[int]color.RGBA64{
-	White:       color.RGBA64{65535, 65535, 65535, 65535},
-	LightGray:   color.RGBA64{58596, 58596, 58596, 65535},
-	Gray:        color.RGBA64{34952, 34952, 34952, 65535},
-	Black:       color.RGBA64{8738, 8738, 8738, 65535},
-	Pink:        color.RGBA64{65535, 42919, 53713, 65535},
-	Red:         color.RGBA64{58853, 0, 2313, 65535},
-	Orange:      color.RGBA64{58853, 38293, 0, 65535},
-	Brown:       color.RGBA64{41120, 27242, 16962, 65535},
-	Yellow:      color.RGBA64{58853, 55769, 0, 65535},
-	LightGreen:  color.RGBA64{38036, 57568, 17476, 65535},
-	Green:       color.RGBA64{514, 48830, 257, 65535},
-	Cyan:        color.RGBA64{0, 54227, 56797, 65535},
-	MediumBlue:  color.RGBA64{0, 33667, 51143, 65535},
-	DarkBlue:    color.RGBA64{0, 0, 60138, 65535},
-	LightPurple: color.RGBA64{53199, 28270, 58596, 65535},
-	DarkPurple:  color.RGBA64{33410, 0, 32896, 65535},
-	Transparent: color.RGBA64{0, 0, 0, 0},
+var rgbaToColor = map[*color.RGBA64]int{
+	&color.RGBA64{65535, 65535, 65535, 65535}: White,
+	&color.RGBA64{58596, 58596, 58596, 65535}: LightGray,
+	&color.RGBA64{34952, 34952, 34952, 65535}: Gray,
+	&color.RGBA64{8738, 8738, 8738, 65535}:    Black,
+	&color.RGBA64{65535, 42919, 53713, 65535}: Pink,
+	&color.RGBA64{58853, 0, 2313, 65535}:      Red,
+	&color.RGBA64{58853, 38293, 0, 65535}:     Orange,
+	&color.RGBA64{41120, 27242, 16962, 65535}: Brown,
+	&color.RGBA64{58853, 55769, 0, 65535}:     Yellow,
+	&color.RGBA64{38036, 57568, 17476, 65535}: LightGreen,
+	&color.RGBA64{514, 48830, 257, 65535}:     Green,
+	&color.RGBA64{0, 54227, 56797, 65535}:     Cyan,
+	&color.RGBA64{0, 54227, 54227, 65535}:     Cyan,
+	&color.RGBA64{0, 33667, 51143, 65535}:     MediumBlue,
+	&color.RGBA64{0, 0, 60138, 65535}:         DarkBlue,
+	&color.RGBA64{53199, 28270, 58596, 65535}: LightPurple,
+	&color.RGBA64{33410, 0, 32896, 65535}:     DarkPurple,
 }
 
 type Pixel struct {
@@ -114,10 +114,14 @@ func (i *Image) ParseKeyframe(version int, data []byte, resource bool) error {
 			coords := x | (y << 16)
 			c := img.At(x, y)
 			color := -1
-			for cc, rgba := range colorToRGBA {
-				if sameColor(c, rgba) {
-					color = cc
-					break
+			if isTransparent(c) {
+				color = Transparent
+			} else {
+				for rgba, cc := range rgbaToColor {
+					if sameColor(c, rgba) {
+						color = cc
+						break
+					}
 				}
 			}
 			colors[coords] = color
@@ -145,6 +149,11 @@ func (i *Image) UpdatePixel(x, y, color, version int) {
 	i.version = version
 	i.colors[x|(y<<16)] = color
 	i.lock.Unlock()
+}
+
+func isTransparent(c color.Color) bool {
+	r, g, b, a := c.RGBA()
+	return a != 65535 && r == g && r == b && r == a
 }
 
 func sameColor(c1, c2 color.Color) bool {

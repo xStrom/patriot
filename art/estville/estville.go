@@ -20,20 +20,20 @@ import (
 	"github.com/xStrom/patriot/art"
 )
 
-const w, h = 105, 117
+const w, h = 135, 120
 const x0, y0 = 735, 875
 const x1, y1 = x0 + w - 1, y0 + h - 1
 
 var resource = &art.Image{}
 
 func init() {
-	data, err := ioutil.ReadFile("data/estville.png")
+	data, err := ioutil.ReadFile("data/estville2.png")
 	if err != nil {
-		panic("Failed to read estville.png")
+		panic("Failed to read estville2.png")
 	}
 	err = resource.ParseKeyframe(1, data, true)
 	if err != nil {
-		panic("Failed to parse estville.png")
+		panic("Failed to parse estville2.png")
 	}
 }
 
