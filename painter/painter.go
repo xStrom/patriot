@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/xStrom/patriot/art"
-	"github.com/xStrom/patriot/art/estflag"
+	"github.com/xStrom/patriot/art/estcows"
 	"github.com/xStrom/patriot/art/estville"
 	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/sp"
@@ -52,8 +52,15 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 		p := estville.GetWork(image, inFlight)
 
 		// #2 priority Estonian flag [Classic above the fold flag]
+		/*
+			if p == nil {
+				p = estflag.GetWork(image, inFlight)
+			}
+		*/
+
+		// #2 priority Estonian flag with lovely cows
 		if p == nil {
-			p = estflag.GetWork(image, inFlight)
+			p = estcows.GetWork(image, inFlight)
 		}
 
 		if p != nil {
