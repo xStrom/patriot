@@ -45,7 +45,7 @@ var client = &http.Client{
 }
 
 func FetchImageFromFile() ([]byte, error) {
-	return ioutil.ReadFile("current.png")
+	return ioutil.ReadFile("snapshots/current1.png")
 }
 
 func FetchImage() ([]byte, int, error) {

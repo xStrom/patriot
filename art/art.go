@@ -127,13 +127,13 @@ func (i *Image) ParseKeyframe(version int, data []byte, resource bool) error {
 			colors[coords] = color
 			if color == -1 {
 				r, g, b, a := c.RGBA()
-				log.Infof("Unknown color in keyframe: %v:%v - %v:%v:%v:%v", x, y, r, g, b, a)
+				log.Infof("Unknown color in keyframe: %v:%v - %v,%v,%v,%v", x, y, r, g, b, a)
 			}
 		}
 	}
 	i.lock.Lock()
 	if i.version > version {
-		log.Infof("New image version is old! %v >= %v", i.version, version)
+		log.Infof("New image version is old! %v > %v", i.version, version)
 	}
 	i.version = version
 	i.colors = colors
@@ -144,7 +144,7 @@ func (i *Image) ParseKeyframe(version int, data []byte, resource bool) error {
 func (i *Image) UpdatePixel(x, y, color, version int) {
 	i.lock.Lock()
 	if i.version > version {
-		log.Infof("New pixel version is old! %v >= %v", i.version, version)
+		log.Infof("New pixel version is old! %v > %v", i.version, version)
 	}
 	i.version = version
 	i.colors[x|(y<<16)] = color

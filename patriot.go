@@ -35,22 +35,6 @@ func main() {
 	wg.Add(1)
 	go work.Work(wg)
 
-	/*
-		fmt.Println("Waiting for queue to be empty ...")
-		for {
-			queueLock.Lock()
-			if len(queue) > 0 {
-				fmt.Printf("Still have %v items in queue ..\n", len(queue))
-			} else {
-				queueLock.Unlock()
-				break
-			}
-			queueLock.Unlock()
-			time.Sleep(10 * time.Second)
-		}
-		fmt.Println("All done!")
-	*/
-
 mainLoop:
 	for {
 		select {
