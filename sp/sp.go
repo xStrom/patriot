@@ -60,14 +60,14 @@ func FetchImage() ([]byte, int, error) {
 		return nil, -1, errors.Wrap(err, "Failed performing request")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, -1, errors.Errorf("Got non-OK status: %v\n", resp.StatusCode)
+		return nil, -1, errors.Errorf("Got non-OK status: %v", resp.StatusCode)
 	}
 	// Extract version
 	version := -1
 	xcv := resp.Header["X-Content-Version"]
 	if len(xcv) > 0 {
 		if ver, err := strconv.ParseInt(xcv[0], 10, 64); err != nil {
-			return nil, -1, errors.Errorf("Failed to parse X-Content-Version: %v\n", xcv[0])
+			return nil, -1, errors.Errorf("Failed to parse X-Content-Version: %v", xcv[0])
 		} else {
 			version = int(ver)
 		}
@@ -97,7 +97,7 @@ func DrawPixel(x, y, c int) error {
 		return errors.Wrap(err, "Failed performing request")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("Got non-OK status: %v\n", resp.StatusCode)
+		return errors.Errorf("Got non-OK status: %v", resp.StatusCode)
 	}
 	if b, err := ioutil.ReadAll(resp.Body); err != nil {
 		return errors.Wrap(err, "Failed reading response")
