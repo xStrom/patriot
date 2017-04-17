@@ -56,7 +56,7 @@ start:
 		log.Infof("Failed to fetch image: %v", err)
 		goto start
 	}
-	if err := img.ParseKeyframe(version, data); err != nil {
+	if err := img.ParseKeyframe(version, data, false); err != nil {
 		panic("Failed to parse image")
 	}
 }

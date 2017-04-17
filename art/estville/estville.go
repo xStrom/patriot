@@ -12,16 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package estflag
+package estville
 
 import (
+	"io/ioutil"
+
 	"github.com/xStrom/patriot/art"
 )
 
-const x0, y0 = 74, 35
+const w, h = 105, 117
+const x0, y0 = 735, 875
+const x1, y1 = x0 + w - 1, y0 + h - 1
 
-//const x0, y0 = 739, 899
-const x1, y1 = x0 + 35 - 1, y0 + 23 - 1
+var resource = &art.Image{}
+
+func init() {
+	data, err := ioutil.ReadFile("data/estville.png")
+	if err != nil {
+		panic("Failed to read estville.png")
+	}
+	err = resource.ParseKeyframe(1, data, true)
+	if err != nil {
+		panic("Failed to parse estville.png")
+	}
+}
 
 // Fixes any broken pixels in the provided image
 func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
@@ -30,33 +44,13 @@ func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
 			if ignorePixels[x|(y<<16)] {
 				continue
 			}
-
-			c := image.At(x, y)
-
-			// Border
-			if x == x0 || x == x1 || y == y0 || y == y1 {
-				if c != art.LightGray {
-					return &art.Pixel{x, y, art.LightGray}
-				}
-			} else {
-				// Flag itself
-				switch (y - y0 - 1) / 7 {
-				case 0:
-					if c != art.DarkBlue {
-						return &art.Pixel{x, y, art.DarkBlue}
-					}
-					break
-				case 1:
-					if c != art.Black {
-						return &art.Pixel{x, y, art.Black}
-					}
-					break
-				case 2:
-					if c != art.White {
-						return &art.Pixel{x, y, art.White}
-					}
-					break
-				}
+			c1 := resource.At(x-x0, y-y0)
+			if c1 == art.Transparent {
+				continue
+			}
+			c2 := image.At(x, y)
+			if c1 != c2 {
+				return &art.Pixel{x, y, c1}
 			}
 		}
 	}

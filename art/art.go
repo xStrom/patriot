@@ -42,6 +42,7 @@ const (
 	DarkBlue
 	LightPurple
 	DarkPurple
+	Transparent
 )
 
 var colorToRGBA = map[int]color.RGBA64{
@@ -61,6 +62,7 @@ var colorToRGBA = map[int]color.RGBA64{
 	DarkBlue:    color.RGBA64{0, 0, 60138, 65535},
 	LightPurple: color.RGBA64{53199, 28270, 58596, 65535},
 	DarkPurple:  color.RGBA64{33410, 0, 32896, 65535},
+	Transparent: color.RGBA64{0, 0, 0, 0},
 }
 
 type Pixel struct {
@@ -90,7 +92,7 @@ func (i *Image) At(x, y int) int {
 	return -1
 }
 
-func (i *Image) ParseKeyframe(version int, data []byte) error {
+func (i *Image) ParseKeyframe(version int, data []byte, resource bool) error {
 	buf := bytes.NewBuffer(data)
 	img, err := png.Decode(buf)
 	if err != nil {
@@ -100,8 +102,10 @@ func (i *Image) ParseKeyframe(version int, data []byte) error {
 	maxX := img.Bounds().Max.X
 	minY := img.Bounds().Min.Y
 	maxY := img.Bounds().Max.Y
-	if minX != 0 || minY != 0 || maxX != 1000 || maxY != 1000 {
-		return errors.New("Unexpected image bounds")
+	if !resource {
+		if minX != 0 || minY != 0 || maxX != 1000 || maxY != 1000 {
+			return errors.New("Unexpected image bounds")
+		}
 	}
 	// Convert colors
 	colors := make(map[int]int, (maxX-minX)*(maxY-minY))
