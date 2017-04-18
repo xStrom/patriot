@@ -20,15 +20,36 @@ import (
 	"time"
 
 	"github.com/xStrom/patriot/art"
-	"github.com/xStrom/patriot/art/dota"
-	"github.com/xStrom/patriot/art/estcows"
-	"github.com/xStrom/patriot/art/estville"
+	"github.com/xStrom/patriot/art/resource"
 	"github.com/xStrom/patriot/log"
 	"github.com/xStrom/patriot/sp"
 	"github.com/xStrom/patriot/work/shutdown"
 )
 
+type ResourceInfo struct {
+	x        int
+	y        int
+	filepath string
+}
+
+var resourceInfos = []*ResourceInfo{
+	&ResourceInfo{735, 875, "data/estville2.png"}, // Estville [Bottom right project]
+	&ResourceInfo{74, 35, "data/estcows.png"},     // Estonian flag with 3rd party cows [Classic above the fold flag]
+	&ResourceInfo{405, 280, "data/dota.png"},      // Dota 2 logo [Near mario]
+}
+
 func Work(wg *sync.WaitGroup, image *art.Image) {
+	// Load resources
+	log.Infof("Loading resources ..")
+	resources := make([]*resource.Resource, 0, len(resourceInfos))
+	for _, ri := range resourceInfos {
+		r, err := resource.New(ri.x, ri.y, ri.filepath)
+		if err != nil {
+			panic("Failed to load resource")
+		}
+		resources = append(resources, r)
+	}
+
 	inFlight := map[int]bool{}
 	inFlightLock := sync.Mutex{}
 	for {
@@ -53,27 +74,10 @@ func Work(wg *sync.WaitGroup, image *art.Image) {
 		inFlightLock.Lock()
 
 		var p *art.Pixel
-
-		// #0 priority Dota 2 logo [Near mario]
-		if p == nil {
-			p = dota.GetWork(image, inFlight)
-		}
-
-		// #1 priority Estville [Bottom right project]
-		if p == nil {
-			p = estville.GetWork(image, inFlight)
-		}
-
-		// #2 priority Estonian flag [Classic above the fold flag]
-		/*
-			if p == nil {
-				p = estflag.GetWork(image, inFlight)
+		for _, r := range resources {
+			if p = r.GetWork(image, inFlight); p != nil {
+				break
 			}
-		*/
-
-		// #2 priority Estonian flag with lovely cows
-		if p == nil {
-			p = estcows.GetWork(image, inFlight)
 		}
 
 		if p != nil {

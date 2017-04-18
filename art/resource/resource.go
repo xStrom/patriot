@@ -12,39 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package estcows
+package resource
 
 import (
 	"io/ioutil"
 
+	"github.com/pkg/errors"
+
 	"github.com/xStrom/patriot/art"
 )
 
-const w, h = 35, 23
-const x0, y0 = 74, 35
-const x1, y1 = x0 + w - 1, y0 + h - 1
+type Resource struct {
+	img *art.Image
+	x0  int
+	x1  int
+	y0  int
+	y1  int
+}
 
-var resource = &art.Image{}
-
-func init() {
-	data, err := ioutil.ReadFile("data/estcows.png")
+func New(x, y int, filepath string) (*Resource, error) {
+	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		panic("Failed to read estcows.png")
+		return nil, errors.Wrap(err, "Failed to read file")
 	}
-	err = resource.ParseKeyframe(1, data, true)
+	img := &art.Image{}
+	err = img.ParseKeyframe(1, data, true)
 	if err != nil {
-		panic("Failed to parse estcows.png")
+		return nil, errors.Wrap(err, "Failed to parse image")
 	}
+	w, h := img.Dimensions()
+	r := &Resource{
+		img: img,
+		x0:  x,
+		x1:  x + w - 1,
+		y0:  y,
+		y1:  y + h - 1,
+	}
+	return r, nil
 }
 
 // Fixes any broken pixels in the provided image
-func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
-	for x := x0; x <= x1; x++ {
-		for y := y0; y <= y1; y++ {
+func (r *Resource) GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
+	for x := r.x0; x <= r.x1; x++ {
+		for y := r.y0; y <= r.y1; y++ {
 			if ignorePixels[x|(y<<16)] {
 				continue
 			}
-			c1 := resource.At(x-x0, y-y0)
+			c1 := r.img.At(x-r.x0, y-r.y0)
 			if c1 == art.Transparent {
 				continue
 			}
@@ -58,9 +72,9 @@ func GetWork(image *art.Image, ignorePixels map[int]bool) *art.Pixel {
 }
 
 // TODO: Bounds check function, so that not every art needs to be looped through after every pixel update --- make a dirty region system
-func CheckPixel(x, y, c int) {
+func (r *Resource) CheckPixel(x, y, c int) {
 	// Make sure the pixel is even in bounds
-	if x >= x0 && x <= x1 && y >= y0 && y <= y1 {
+	if x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 {
 
 	}
 }

@@ -75,6 +75,14 @@ type Image struct {
 	lock    sync.RWMutex
 	version int
 	colors  map[int]int
+	width   int
+	height  int
+}
+
+func (i *Image) Dimensions() (int, int) {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.width, i.height
 }
 
 func (i *Image) Version() int {
@@ -137,6 +145,8 @@ func (i *Image) ParseKeyframe(version int, data []byte, resource bool) error {
 	}
 	i.version = version
 	i.colors = colors
+	i.width = maxX - minX
+	i.height = maxY - minY
 	i.lock.Unlock()
 	return nil
 }
