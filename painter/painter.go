@@ -33,9 +33,11 @@ type ResourceInfo struct {
 }
 
 var resourceInfos = []*ResourceInfo{
+	//&ResourceInfo{74, 35, "data/estflag.png"},     // Estonian flag [Classic above the fold flag]
+	//&ResourceInfo{405, 280, "data/dota.png"},      // Dota 2 logo [Near mario]
+
 	&ResourceInfo{735, 875, "data/estville2.png"}, // Estville [Bottom right project]
-	&ResourceInfo{74, 35, "data/estcows.png"},     // Estonian flag with 3rd party cows [Classic above the fold flag]
-	&ResourceInfo{405, 280, "data/dota.png"},      // Dota 2 logo [Near mario]
+	&ResourceInfo{74, 35, "data/estcows.png"},     // Estonian flag with 3rd party cows [Classic above the fold flag position]
 }
 
 func Work(wg *sync.WaitGroup, image *art.Image) {
